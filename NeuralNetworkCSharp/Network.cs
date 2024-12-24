@@ -5,35 +5,42 @@ namespace NeuralNetworkCSharp;
 
 public class Network
 {
-    private int _numLayers;
-    private List<int> _sizes;
-    private List<List<double>> _biases { get; set; }
-    private List<List<List<double>>> _weights { get; set; }
+    private int NumLayers {get; set;}
+    private List<int> Sizes { get; set; }
+    private List<List<double>> Biases { get; set; }
+    private List<List<List<double>>> Weights { get; set; }
     
     public Network(List<int> sizes)
     {
-        _sizes = sizes;
-        _numLayers = sizes.Count;
-        _biases = GenerateInitialBiases(_sizes);
-        _weights = GenerateWeights(_sizes);
+        Sizes = sizes;
+        NumLayers = sizes.Count;
+        Biases = GenerateInitialBiases();
+        Weights = GenerateWeights();
     }
-
+    
+    /// <summary>
+    /// Apply Sigmoid Kernel Function into list of input(double)
+    /// </summary>
     public List<double> ApplySigmoid(List<double> input)
     {
         return input.Select(SigmoidKernelFunction).ToList();
     }
+    
+    /// <summary>
+    /// FeedForward calculation from input layer to output layer
+    /// </summary>
     public List<double> FeedForward(List<double> input)
     {
-        if(input.Count != _sizes[0]) 
-            throw new Exception($"The number of inputs must match the number of input percepton. Current Input Percepton {_sizes[0]}");
+        if(input.Count != Sizes[0]) 
+            throw new Exception($"The number of inputs must match the number of input percepton. Current Input Percepton {Sizes[0]}");
 
         List<double> a = new List<double>(input);
         
         // Iterate in each layer
-        for (int i = 0; i < _biases.Count ; i++)
+        for (int i = 0; i < Biases.Count ; i++)
         {
-            List<double> biasCurrentLayer = _biases[i];
-            List<List<double>> weightCurrentLayer = _weights[i];
+            List<double> biasCurrentLayer = Biases[i];
+            List<List<double>> weightCurrentLayer = Weights[i];
             
             List<double> inputValuesCurrentLayer = new List<double>();
             
@@ -54,15 +61,19 @@ public class Network
 
         return a;
     }
-    private List<List<double>> GenerateInitialBiases(List<int> sizes)
+    
+    /// <summary>
+    /// Generate initial random normal distribution of biases on all layer
+    /// </summary>
+    private List<List<double>> GenerateInitialBiases()
     {
         List<List<double>> biases = new List<List<double>>();
-        for (int i = 1; i < _numLayers; i++)
+        for (int i = 1; i < NumLayers; i++)
         {
             List<double> layerBiases = new List<double>();
             var normalDist = new Normal(0, 1);
 
-            for (int j = 0; j < sizes[i]; j++)
+            for (int j = 0; j < Sizes[i]; j++)
             {
                 layerBiases.Add(normalDist.Sample());
             }
@@ -70,19 +81,23 @@ public class Network
         }
         return biases;
     }
-    private List<List<List<double>>> GenerateWeights(List<int> sizes)
+    
+    /// <summary>
+    /// Generate initial random normal distribution of weights on all layer
+    /// </summary>
+    private List<List<List<double>>> GenerateWeights()
     {
         List<List<List<double>>> weights = new ();
-        for (int i = 1; i < _numLayers; i++)
+        for (int i = 1; i < NumLayers; i++)
         {
             List<List<double>> layerWeights = new List<List<double>>();
 
-            for (int j = 0; j < sizes[i]; j++)
+            for (int j = 0; j < Sizes[i]; j++)
             {
                 List<double> neuronWeights = new List<double>();
                 var normalDist = new Normal(0, 1);
 
-                for (int k = 0; k < sizes[i - 1]; k++)
+                for (int k = 0; k < Sizes[i - 1]; k++)
                 {
                     neuronWeights.Add(normalDist.Sample());
                 }
@@ -92,8 +107,16 @@ public class Network
         }
         return weights;
     }
+    
+    /// <summary>
+    /// General Sigmoid Kernel Function
+    /// </summary>
     private double SigmoidKernelFunction(double x)
     {
         return 1 / (1 + Math.Exp(-x));
     }
+    
+    // TODO : Backpropagation Algorithm (Learning / Updating the Weight and Biases)
+    
+    // TODO : Training Loops Mechanism
 }
