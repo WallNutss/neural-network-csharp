@@ -22,9 +22,11 @@ public class Network
     {
         return input.Select(SigmoidKernelFunction).ToList();
     }
-
     public List<double> FeedForward(List<double> input)
     {
+        if(input.Count != _sizes[0]) 
+            throw new Exception($"The number of inputs must match the number of input percepton. Current Input Percepton {_sizes[0]}");
+
         List<double> a = new List<double>(input);
         
         // Iterate in each layer
@@ -33,26 +35,25 @@ public class Network
             List<double> biasCurrentLayer = _biases[i];
             List<List<double>> weightCurrentLayer = _weights[i];
             
-            List<double> activationValuesCurrentLayer = new List<double>();
+            List<double> inputValuesCurrentLayer = new List<double>();
             
             // Calculate the value of the activations layer for this current layer stage
             for (int j = 0; j < weightCurrentLayer.Count; j++)
             {
                 var weightVector = Vector<double>.Build.Dense(weightCurrentLayer[j].ToArray());
-                var activationVector = Vector<double>.Build.Dense(a.ToArray());
+                var inputVector = Vector<double>.Build.Dense(a.ToArray());
 
                 // Calculate the dot product of the weights and activations
-                double value = weightVector.DotProduct(activationVector) + biasCurrentLayer[j];
+                double value = weightVector.DotProduct(inputVector) + biasCurrentLayer[j];
                 
-                activationValuesCurrentLayer.Add(SigmoidKernelFunction(value));
+                inputValuesCurrentLayer.Add(SigmoidKernelFunction(value));
             }
             
-            a = activationValuesCurrentLayer;
+            a = inputValuesCurrentLayer;
         }
 
         return a;
     }
-    
     private List<List<double>> GenerateInitialBiases(List<int> sizes)
     {
         List<List<double>> biases = new List<List<double>>();

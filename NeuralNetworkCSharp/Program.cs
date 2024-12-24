@@ -5,15 +5,20 @@ class Program
 {
     public static void Main(string[] args)
     {
-        int inputLayer = 5;
+        int inputLayer = 728;
         int hiddenLayer = 15;
-        int outputLayer = 4;
+        int outputLayer = 10;
         List<int> networkSize = new List<int>(){ inputLayer, hiddenLayer, outputLayer };
         
         Network network = new(networkSize);
         
-        List<double> input = new List<double>() {1,2,3,5,6} ;
-        List<double> result = network.FeedForward(input);
+        ImageProcessing loader = new ImageProcessing();
+        var imagesBytes = loader.ImagetoByteArray("C:/Jun Local Things/Playground/Neural Network C#/mnist_png/train/1/711.png");
+        var imagesArray = imagesBytes.ToList<double>();
+        Console.WriteLine($"Images size: {imagesBytes.Length}");
+        
+        // List<double> input = new List<double>() {0.02, 0.04} ;
+        List<double> result = network.FeedForward(imagesArray);
         foreach (double value in result)
         {
             Console.WriteLine(value);
