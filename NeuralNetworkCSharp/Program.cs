@@ -5,7 +5,7 @@ class Program
 {
     public static void Main(string[] args)
     {
-        int inputLayer = 728;
+        int inputLayer = 784;
         int hiddenLayer = 15;
         int outputLayer = 10;
         List<int> networkSize = new List<int>(){ inputLayer, hiddenLayer, outputLayer };
