@@ -116,6 +116,49 @@ public class Network
         return 1 / (1 + Math.Exp(-x));
     }
     
+    // TODO : Import Dataset
+    // TODO : Getting the images based on training directory
+    public (List<string> images, List<int[]> labels) LoadDataset(string trainingPath)
+    {
+        if(!Directory.Exists(trainingPath))
+            throw new DirectoryNotFoundException();
+        
+        // Initialize the images and their own decoding
+        List<string> imagesPath = new ();
+        List<int[]> labelEncoding = new();
+        
+        // Get all the images on that training directory
+        imagesPath.AddRange(Directory.GetFiles(trainingPath, "*.png", SearchOption.AllDirectories));
+        
+        // Get the labels based on the subfolder directory
+        List<string> labels = new List<string>();
+        labels.AddRange(Directory.GetDirectories(trainingPath).Select(dir => Path.GetFileName(dir)!));
+        
+        foreach (var imagePath in imagesPath)
+        {
+            var labelTag = new DirectoryInfo(Path.GetDirectoryName(imagePath)!).Name;
+            int[] encoding = LabelEncoding(labels, labelTag);
+            labelEncoding.Add(encoding);
+        }
+        return (imagesPath, labelEncoding);
+    }
+    
+    // TODO : Getting the label encoding
+    private int[] LabelEncoding(List<string> labels, string label)
+    {
+        int[] labelEncoding = new int[labels.Count];
+        for (int i = 0; i < labelEncoding.Length; i++)
+        {
+            if (labels[i] == label)
+                labelEncoding[i] = 1;
+            else
+                labelEncoding[i] = 0;
+        }
+        return labelEncoding;
+    }
+    
+    // TODO : Shuffle training images (paths, and their encoding) to batches
+    
     // TODO : Backpropagation Algorithm (Learning / Updating the Weight and Biases)
     
     // TODO : Training Loops Mechanism

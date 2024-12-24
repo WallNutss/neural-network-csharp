@@ -4,10 +4,17 @@ namespace NeuralNetworkCSharp;
 
 public class ImageProcessing
 {
-    // TODO : Getting the images based on training directory
-    
-    // TODO : Getting the label encoding
-    public double[] ImagetoByteArray(string imagePath)
+    // TODO : Get the bytes array based on the training dataset
+    public List<double[]> BatchImageProcessing(List<string> imagePaths)
+    {
+        List<double[]> batchImage = new List<double[]>();
+        foreach (var imagePath in imagePaths)
+        {
+            batchImage.Add(SingleImageProcessing(imagePath));
+        }
+        return batchImage;
+    }
+    public double[] SingleImageProcessing(string imagePath)
     {
         double[] image = new double[728];
         

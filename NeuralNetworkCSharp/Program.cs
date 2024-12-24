@@ -1,4 +1,5 @@
 ﻿
+using System.Diagnostics;
 using NeuralNetworkCSharp;
 
 class Program
@@ -12,8 +13,8 @@ class Program
         
         Network network = new(networkSize);
         
-        ImageProcessing loader = new ImageProcessing();
-        var imagesBytes = loader.ImagetoByteArray("C:/Jun Local Things/Playground/Neural Network C#/mnist_png/train/1/711.png");
+        ImageProcessing imageProcessing = new ImageProcessing();
+        var imagesBytes = imageProcessing.SingleImageProcessing("C:/Jun Local Things/Playground/Neural Network C#/mnist_png/train/1/711.png");
         var imagesArray = imagesBytes.ToList<double>();
         Console.WriteLine($"Images size: {imagesBytes.Length}");
         
@@ -23,6 +24,19 @@ class Program
         {
             Console.WriteLine(value);
         }
+        
+        // Load training folder
+        // NOTE : DOES using double[] is a type of Unmanaged Memory?
+        var watch = Stopwatch.StartNew();
+        var trainingDirectory = "C:/Jun Local Things/Playground/Neural Network C#/mnist_png/train";
+        (List<string> imagePaths, List<int[]> labelEncoding) = network.LoadDataset(trainingDirectory);
+        List<double[]> trainingImages = imageProcessing.BatchImageProcessing(imagePaths);
+        watch.Stop();
+        
+        var elapsedS = watch.ElapsedMilliseconds/1000f;
+        Console.WriteLine("Finished loading training data....");
+        Console.WriteLine($"Dataset count : {imagePaths.Count}");
+        Console.WriteLine($"Loading training data took {elapsedS} seconds.");
         
     }
 }
