@@ -4,6 +4,9 @@ namespace NeuralNetworkCSharp;
 
 public class ImageProcessing
 {
+    // TODO : Getting the images based on training directory
+    
+    // TODO : Getting the label encoding
     public double[] ImagetoByteArray(string imagePath)
     {
         double[] image = new double[728];
