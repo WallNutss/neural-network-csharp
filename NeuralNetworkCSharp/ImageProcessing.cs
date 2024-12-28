@@ -4,7 +4,7 @@ namespace NeuralNetworkCSharp;
 
 public class ImageProcessing
 {
-    // TODO : Get the bytes array based on the training dataset
+    // TODO : Get the bytes array based on the training dataset [Done, will delete this later]
     public List<double[]> BatchImageProcessing(List<string> imagePaths)
     {
         List<double[]> batchImage = new List<double[]>();
