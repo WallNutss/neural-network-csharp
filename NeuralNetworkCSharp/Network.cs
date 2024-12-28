@@ -1,5 +1,6 @@
 using MathNet.Numerics.Distributions;
 using MathNet.Numerics.LinearAlgebra;
+using NeuralNetworkCSharp.Domain;
 
 namespace NeuralNetworkCSharp;
 
@@ -9,6 +10,8 @@ public class Network
     private List<int> Sizes { get; set; }
     private List<List<double>> Biases { get; set; }
     private List<List<List<double>>> Weights { get; set; }
+    private DatasetLoader _datasetLoader;
+    private ImageProcessing _imageProcessing;
     
     public Network(List<int> sizes)
     {
@@ -16,6 +19,8 @@ public class Network
         NumLayers = sizes.Count;
         Biases = GenerateInitialBiases();
         Weights = GenerateWeights();
+        _datasetLoader = new DatasetLoader();
+        _imageProcessing = new ImageProcessing();
     }
     
     /// <summary>
@@ -27,7 +32,7 @@ public class Network
     }
     
     /// <summary>
-    /// FeedForward calculation from input layer to output layer
+    /// FeedForward calculation from input layer to output layer in batches
     /// </summary>
     public List<double> FeedForward(List<double> input)
     {
@@ -116,50 +121,53 @@ public class Network
         return 1 / (1 + Math.Exp(-x));
     }
     
-    // TODO : Import Dataset
-    // TODO : Getting the images based on training directory
-    public (List<string> images, List<int[]> labels) LoadDataset(string trainingPath)
-    {
-        if(!Directory.Exists(trainingPath))
-            throw new DirectoryNotFoundException();
-        
-        // Initialize the images and their own decoding
-        List<string> imagesPath = new ();
-        List<int[]> labelEncoding = new();
-        
-        // Get all the images on that training directory
-        imagesPath.AddRange(Directory.GetFiles(trainingPath, "*.png", SearchOption.AllDirectories));
-        
-        // Get the labels based on the subfolder directory
-        List<string> labels = new List<string>();
-        labels.AddRange(Directory.GetDirectories(trainingPath).Select(dir => Path.GetFileName(dir)!));
-        
-        foreach (var imagePath in imagesPath)
-        {
-            var labelTag = new DirectoryInfo(Path.GetDirectoryName(imagePath)!).Name;
-            int[] encoding = LabelEncoding(labels, labelTag);
-            labelEncoding.Add(encoding);
-        }
-        return (imagesPath, labelEncoding);
-    }
-    
-    // TODO : Getting the label encoding
-    private int[] LabelEncoding(List<string> labels, string label)
-    {
-        int[] labelEncoding = new int[labels.Count];
-        for (int i = 0; i < labelEncoding.Length; i++)
-        {
-            if (labels[i] == label)
-                labelEncoding[i] = 1;
-            else
-                labelEncoding[i] = 0;
-        }
-        return labelEncoding;
-    }
-    
-    // TODO : Shuffle training images (paths, and their encoding) to batches
-    
     // TODO : Backpropagation Algorithm (Learning / Updating the Weight and Biases)
     
     // TODO : Training Loops Mechanism
+
+    private List<double> CalculateError(List<double> feedForwardInput, List<double> labelEncodingInput)
+    {
+        List<double> errors = new List<double>();
+        if (feedForwardInput.Count != labelEncodingInput.Count) 
+            throw new Exception("The number of label encoding input must match the number of label encoding input");
+        
+        for (int i = 0; i < feedForwardInput.Count; i++)
+        {
+            errors.Add(feedForwardInput[i] - labelEncodingInput[i]);
+        }
+        return errors;
+    }
+    
+    public void Train(string trainingDirectory, int epochs, int batchSize)
+    {
+        // Load the training dataset and get their label based on one-hot encoding
+        Dataset dataset = _datasetLoader.LoadTrainingDataset(trainingDirectory);
+        
+        // Start training processs
+        for (int i = 1; i <= epochs; i++)
+        {
+            Console.WriteLine($"Epoch #{i}/{epochs}....");
+            
+            // Get the shuffle version of dataset
+            (List<string> trainingShuffleDataset, List<double[]> trainingShuffleLabel) =
+                _datasetLoader.ShuffleDataset(dataset.TrainingDatasetImages, dataset.TrainingDatasetLabels, batchSize);
+            
+            List<List<double>> errorBatchResult = new();
+            // Get the feed forward result in each shuffle data
+            for (int j = 0; j < trainingShuffleDataset.Count; j++)
+            {
+                double[] imageBytesForm = _imageProcessing.SingleImageProcessing(trainingShuffleDataset[j]);
+                var imagesArrayForm = imageBytesForm.ToList<double>();
+                List<double> trainingLocalBatchPerImageResult = FeedForward(imagesArrayForm);
+                
+                // TODO : Get the error between network result and the expected one-hot encoding result [Partially Done]
+                List<double> errorImageResult =
+                    CalculateError(trainingLocalBatchPerImageResult, trainingShuffleLabel[j].ToList());
+
+            }
+            // TODO : Update the weight and Biases
+        }
+    }
+    
+    // TODO : Predict class (Single Prediction)
 }
