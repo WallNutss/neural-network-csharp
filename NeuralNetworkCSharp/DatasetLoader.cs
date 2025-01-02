@@ -57,38 +57,53 @@ public class DatasetLoader
     }
     
     // TODO : Making randomize the order of images and their labels [Done, will delete this later]
-    public (List<string>, List<double[]>) ShuffleDataset(List<string> images, List<double[]> labels, int batchSize = 100)
+    public List<(List<string> images, List<double[]> labels)> ShuffleDataset(List<string> images, List<double[]> labels, int batchSize = 100)
     {
         int count = images.Count;
-        List<string> localBatchimagesPath = new();
-        List<double[]> localBatchlabels = new();
+        int batchSet = BatchSet(batchSize, count);
+        (List<string> shuffledImages, List<double[]> shuffledLabels) = Shuffle(images, labels);
+        List<(List<string> images, List<double[]> labels)> batches = new();
         
+        int index = 0;
+        for (int i = 0; i < batchSet; i++)
+        {
+            List<string> miniBatchImages = new();
+            List<double[]> miniBatchLabels = new();
+
+            for (int j = 0 ; j < batchSize && index < count ; j++)
+            {
+                miniBatchImages.Add(shuffledImages[index]);
+                miniBatchLabels.Add(shuffledLabels[index]);
+                index++;
+            }
+            batches.Add((miniBatchImages, miniBatchLabels));
+        }
+        return batches;
+    }
+    
+    private (List<string>, List<double[]>) Shuffle(List<string> listImages, List<double[]> listLabels)
+    {
         // Based on this Fisher-Yates Shuffle from this stackoverlflow forum
         // https://stackoverflow.com/questions/273313/randomize-a-listt
         
-        // NOTE : Perhaps not shuffle, but more like permutation?
-        List<int> permutationIndex = Permutation(count, batchSize);
-
-        foreach (var p in permutationIndex)
+        Random rng = new Random();
+        int n = listImages.Count;
+        while (n > 0)
         {
-            localBatchimagesPath.Add(images[p]);
-            localBatchlabels.Add(labels[p]);
+            n--;
+            int k = rng.Next(n + 1);
+            (listImages[k], listImages[n]) = (listImages[n], listImages[k]);
+            (listLabels[k], listLabels[n]) = (listLabels[n], listLabels[k]);
         }
-        return (localBatchimagesPath, localBatchlabels);
+        return (listImages, listLabels);
     }
 
-    private List<int> Permutation(int size, int batchSize)
+    private int BatchSet(int batchSize, int totalImage)
     {
-        List<int> permutation = new();
-        while (batchSize > 0)
-        {
-            int k = _rng.Next(0, size);
-            if(permutation.Contains(k)) continue;
-            
-            permutation.Add(k);
-            batchSize--;
-        }
-        return permutation;
+        int remainder = totalImage % batchSize;
+        int result = totalImage / batchSize;
+        if (remainder == 0) return result;
+        return result + 1;
     }
 }
 

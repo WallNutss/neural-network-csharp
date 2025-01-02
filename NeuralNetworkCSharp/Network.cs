@@ -121,21 +121,33 @@ public class Network
         return 1 / (1 + Math.Exp(-x));
     }
     
+    /// <summary>
+    /// General Sigmoid Kernel Function Derivative
+    /// </summary>
+    private double DerivativeSigmoidKernelFunction(double x)
+    {
+        return SigmoidKernelFunction(x) * (1 - SigmoidKernelFunction(x));
+    }
+    
     // TODO : Backpropagation Algorithm (Learning / Updating the Weight and Biases)
+    private void Back(double loss)
+    {
+        int efectiveLayer = NumLayers - 1;
+    }
     
     // TODO : Training Loops Mechanism
 
-    private List<double> CalculateError(List<double> feedForwardInput, List<double> labelEncodingInput)
+    public double CalculateCrossEntropyLoss(List<double> feedForwardPredicted, List<double> trueLabels)
     {
-        List<double> errors = new List<double>();
-        if (feedForwardInput.Count != labelEncodingInput.Count) 
-            throw new Exception("The number of label encoding input must match the number of label encoding input");
-        
-        for (int i = 0; i < feedForwardInput.Count; i++)
+        double loss = 0.0;
+        if (feedForwardPredicted.Count != trueLabels.Count)
+            throw new InvalidOperationException("The number of predicted labels must match the number of true labels");
+    
+        for (int i = 0; i < feedForwardPredicted.Count; i++)
         {
-            errors.Add(feedForwardInput[i] - labelEncodingInput[i]);
+            loss += trueLabels[i] * Math.Log(feedForwardPredicted[i]);
         }
-        return errors;
+        return -loss;
     }
     
     public void Train(string trainingDirectory, int epochs, int batchSize)
@@ -149,23 +161,36 @@ public class Network
             Console.WriteLine($"Epoch #{i}/{epochs}....");
             
             // Get the shuffle version of dataset
-            (List<string> trainingShuffleDataset, List<double[]> trainingShuffleLabel) =
+            List<(List<string>, List<double[]>)> batches =
                 _datasetLoader.ShuffleDataset(dataset.TrainingDatasetImages, dataset.TrainingDatasetLabels, batchSize);
-            
-            List<List<double>> errorBatchResult = new();
-            // Get the feed forward result in each shuffle data
-            for (int j = 0; j < trainingShuffleDataset.Count; j++)
-            {
-                double[] imageBytesForm = _imageProcessing.SingleImageProcessing(trainingShuffleDataset[j]);
-                var imagesArrayForm = imageBytesForm.ToList<double>();
-                List<double> trainingLocalBatchPerImageResult = FeedForward(imagesArrayForm);
-                
-                // TODO : Get the error between network result and the expected one-hot encoding result [Partially Done]
-                List<double> errorImageResult =
-                    CalculateError(trainingLocalBatchPerImageResult, trainingShuffleLabel[j].ToList());
 
+            // Processing the entire dataset but limit it by one batch at a time
+            for (int j = 0; j < batches.Count; j++)
+            {
+                Console.WriteLine($"Epoch #{i}/{epochs} | Batch {j + 1}/{batches.Count}....");
+                List<double> errorMiniBatch = new();
+                // Processing mini-batch
+                for (int k = 0; k < batches[j].Item1.Count; k++)
+                {
+                    // Item1 is the images
+                    // Item2 is the labels
+                    // Idk how I can change their name, please help me
+                    double[] imageProcessing = _imageProcessing.SingleImageProcessing(batches[j].Item1[k]);
+                    List<double> imageInput = imageProcessing.ToList();
+                    List<double> prediction = FeedForward(imageInput);
+                    
+                    // TODO : Get the error between network result and the expected one-hot encoding result
+                    double error =
+                        CalculateCrossEntropyLoss(prediction, batches[j].Item2[k].ToList());
+                    errorMiniBatch.Add(error);
+                }
+                double averageMiniBatchLoss = errorMiniBatch.Average();
+                Console.WriteLine($"Mini Batch average loss is {averageMiniBatchLoss}");
             }
+            
             // TODO : Update the weight and Biases
+            // StochasticGradientDescent(averageLoss);
+            
         }
     }
     
