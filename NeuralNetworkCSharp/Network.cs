@@ -37,34 +37,41 @@ public class Network
     public List<double> FeedForward(List<double> input)
     {
         if(input.Count != Sizes[0]) 
-            throw new Exception($"The number of inputs must match the number of input percepton. Current Input Percepton {Sizes[0]}");
-
-        List<double> a = new List<double>(input);
+            throw new Exception($"The number of inputs must match the number of input perceptron. Current Input perceptron {Sizes[0]}");
         
+        List<List<double>> activations = new List<List<double>>();
+        List<List<double>> zs = new List<List<double>>();
+        
+        List<double> activation = new List<double>(input);
         // Iterate in each layer
         for (int i = 0; i < Biases.Count ; i++)
         {
             List<double> biasCurrentLayer = Biases[i];
             List<List<double>> weightCurrentLayer = Weights[i];
             
-            List<double> inputValuesCurrentLayer = new List<double>();
+            List<double> inputCurrentLayer = new List<double>();
+            List<double> zCurrentLayer = new List<double>();
             
-            // Calculate the value of the activations layer for this current layer stage
-            for (int j = 0; j < weightCurrentLayer.Count; j++)
+            // Calculate the value of the activations layer for this current layer stage for each neuron
+            for (int j = 0; j < biasCurrentLayer.Count; j++)
             {
                 var weightVector = Vector<double>.Build.Dense(weightCurrentLayer[j].ToArray());
-                var inputVector = Vector<double>.Build.Dense(a.ToArray());
+                var inputVector = Vector<double>.Build.Dense(activation.ToArray());
 
                 // Calculate the dot product of the weights and activations
-                double value = weightVector.DotProduct(inputVector) + biasCurrentLayer[j];
+                double z = weightVector.DotProduct(inputVector) + biasCurrentLayer[j];
+                double activationValue = SigmoidKernelFunction(z);
                 
-                inputValuesCurrentLayer.Add(SigmoidKernelFunction(value));
+                inputCurrentLayer.Add(activationValue);
+                zCurrentLayer.Add(z);
             }
             
-            a = inputValuesCurrentLayer;
+            activation = inputCurrentLayer;
+            zs.Add(zCurrentLayer);
+            activations.Add(activation);
         }
 
-        return a;
+        return activation;
     }
     
     /// <summary>
@@ -112,6 +119,61 @@ public class Network
         }
         return weights;
     }
+    
+    /// <summary>
+    /// Importing Custom Weights based on the Network Layer and their individual neuron inputs
+    /// Follow the scheme of index 0 start from the left, with the first input of the current L-Layer the first
+    /// Follow the second index 1 of their second weight on that neuron
+    /// </summary>
+    public void ImportWeights(List<double> weights)
+    {
+        int totalWeightsNetwork = 0;
+        for (int i = 0; i < Sizes.Count - 1; i++)
+        {
+            totalWeightsNetwork += Sizes[i] * Sizes[i+1];
+        }
+        if(weights.Count != totalWeightsNetwork)
+            throw new InvalidOperationException("The number of imported weights must be the same as the number of network weights");
+
+        int index = 0;
+        for (int i = 0; i < Weights.Count; i++)
+        {
+            for (int j = 0; j < Weights[i].Count; j++)
+            {
+                for (int k = 0; k < Weights[i][j].Count; k++)
+                {
+                    Weights[i][j][k] = weights[index];
+                    index++;
+                }
+            }
+        }
+        
+    }
+    
+    /// <summary>
+    /// Importing Custom Bias based on the Network Layer and their individual neuron inputs
+    /// </summary>
+    public void ImportBias(List<double> biases)
+    {
+        int totalBiasNetwork = 0;
+        for (int i = 1; i < Sizes.Count; i++)
+        {
+            totalBiasNetwork += Sizes[i];
+        }
+        if(biases.Count != totalBiasNetwork)
+            throw new InvalidOperationException("The number of imported bias must be the same as the number of network weights");
+
+        int index = 0;
+        for (int i = 0; i < Weights.Count; i++)
+        {
+            for (int j = 0; j < Weights[i].Count; j++)
+            {
+                Biases[i][j] = biases[index];
+                index++;
+            }
+        }
+    }
+    
     
     /// <summary>
     /// General Sigmoid Kernel Function
