@@ -18,7 +18,7 @@ public class Network
         Sizes = sizes;
         NumLayers = sizes.Count;
         Biases = GenerateInitialBiases();
-        Weights = GenerateWeights();
+        Weights = GenerateInitialWeights();
         _datasetLoader = new DatasetLoader();
         _imageProcessing = new ImageProcessing();
     }
@@ -34,7 +34,7 @@ public class Network
     /// <summary>
     /// FeedForward calculation from input layer to output layer in batches
     /// </summary>
-    public List<double> FeedForward(List<double> input)
+    public List<double> FeedForward(List<double> input, List<double> outputLabels)
     {
         if(input.Count != Sizes[0]) 
             throw new Exception($"The number of inputs must match the number of input perceptron. Current Input perceptron {Sizes[0]}");
@@ -43,6 +43,7 @@ public class Network
         List<List<double>> zs = new List<List<double>>();
         
         List<double> activation = new List<double>(input);
+        activations.Add(activation);
         // Iterate in each layer
         for (int i = 0; i < Biases.Count ; i++)
         {
@@ -67,11 +68,79 @@ public class Network
             }
             
             activation = inputCurrentLayer;
-            zs.Add(zCurrentLayer);
             activations.Add(activation);
+            zs.Add(zCurrentLayer);
         }
+        
+        // TODO : Do Learning Algorithm here
+        Backpropagation(activations, zs, activation, outputLabels, 0.01);
 
         return activation;
+    }
+    
+    // TODO : Backpropagation Algorithm (Learning / Updating the Weight and Biases)
+    /// <summary>
+    /// Backpropagation calculation from output layer back to input layer
+    /// </summary>
+    public void Backpropagation(List<List<double>> activations, List<List<double>> zs, List<double> prediction, List<double> target, double learningRate)
+    {
+        int intermittenLayer = NumLayers - 2;
+        List<List<List<double>>> nablaWeights = new();
+        List<double> nablaBiases = new();
+        
+        List<List<double>> dLdzs = new();
+
+        // Start the weight and bias update using gradient descent
+        for (int i = intermittenLayer; i >= 0; i--)
+        {
+            List<List<double>> nablaWeightsEachIntermittenLayer = new();
+            List<double> dldzEachIntermittenLayer = new();
+            
+            for (int j = 0; j < Weights[i].Count; j++)
+            {
+                // Updating the first intermitten layer, its special because its the first chain to update the weights
+                if (i == intermittenLayer)
+                {
+                    var dlda = prediction[j] - target[j];
+                    var dadz = DerivativeSigmoidKernelFunction(zs[i][j]);
+                    var dzdw = Vector<double>.Build.Dense(activations[i].ToArray());
+
+                    var dldz = dlda * dadz;
+                    var dldw = dzdw * dldz;
+                    
+                    dldzEachIntermittenLayer.Add(dldz);
+                    nablaWeightsEachIntermittenLayer.Add(dldw.ToList());
+                }
+                // The rest of the intermitten layer, if there is four layer {input, hidden, hidden, output}, then this
+                // will be the input-hidden, hidden-hidden
+                else
+                {
+                    // Iterate in each loop of previous dldz layer intermitten and get total of that to get the dL/dA[each neuron]
+                    List<double> dzda1 = new();
+                    foreach (var each in Weights[i + 1])
+                    {
+                        dzda1.Add(each[j]);
+                    }
+                    var dldzPreviousLayer = Vector<double>.Build.Dense(dLdzs[0].ToArray());
+                    var dzda1Vector = Vector<double>.Build.Dense(dzda1.ToArray());
+                    
+                    // Get the current dLdz by dL/dA[each neuron] * dA[Each Neuron]/dz[Each Neuron]
+                    var dadz = DerivativeSigmoidKernelFunction(zs[i][j]);
+                    var dldz = dldzPreviousLayer.DotProduct(dzda1Vector) * dadz;
+                    
+                    // Get the nabla of dLdw by simply now dLdz * dzdw
+                    var dzdw = Vector<double>.Build.Dense(activations[i].ToArray());
+                    var dldw = dzdw * dldz;
+                    
+                    dldzEachIntermittenLayer.Add(dldz);
+                    nablaWeightsEachIntermittenLayer.Add(dldw.ToList());
+                }
+            }
+            nablaWeights.Insert(0, nablaWeightsEachIntermittenLayer);
+            dLdzs.Insert(0, dldzEachIntermittenLayer);
+        }
+        
+        // Update the weight and biases
     }
     
     /// <summary>
@@ -97,7 +166,7 @@ public class Network
     /// <summary>
     /// Generate initial random normal distribution of weights on all layer
     /// </summary>
-    private List<List<List<double>>> GenerateWeights()
+    private List<List<List<double>>> GenerateInitialWeights()
     {
         List<List<List<double>>> weights = new ();
         for (int i = 1; i < NumLayers; i++)
@@ -174,6 +243,8 @@ public class Network
         }
     }
     
+    // TODO : Alogrithm to Update Weight and Bias from Nabla from the BackPropagation result
+    
     
     /// <summary>
     /// General Sigmoid Kernel Function
@@ -190,14 +261,6 @@ public class Network
     {
         return SigmoidKernelFunction(x) * (1 - SigmoidKernelFunction(x));
     }
-    
-    // TODO : Backpropagation Algorithm (Learning / Updating the Weight and Biases)
-    private void Back(double loss)
-    {
-        int efectiveLayer = NumLayers - 1;
-    }
-    
-    // TODO : Training Loops Mechanism
 
     public double CalculateCrossEntropyLoss(List<double> feedForwardPredicted, List<double> trueLabels)
     {
@@ -211,7 +274,21 @@ public class Network
         }
         return -loss;
     }
+
+    public double CalculateMeanSquareErrorLoss(List<double> feedForwardPredicted, List<double> trueLabels)
+    {
+        double loss = 0.0;
+        if (feedForwardPredicted.Count != trueLabels.Count)
+            throw new InvalidOperationException("The number of predicted labels must match the number of true labels");
     
+        for (int i = 0; i < feedForwardPredicted.Count; i++)
+        {
+            loss += Math.Pow(trueLabels[i] - feedForwardPredicted[i], 2);
+        }
+        return loss/feedForwardPredicted.Count;
+    }
+    
+    // TODO : Training Loops Mechanism
     public void Train(string trainingDirectory, int epochs, int batchSize)
     {
         // Load the training dataset and get their label based on one-hot encoding
@@ -239,11 +316,12 @@ public class Network
                     // Idk how I can change their name, please help me
                     double[] imageProcessing = _imageProcessing.SingleImageProcessing(batches[j].Item1[k]);
                     List<double> imageInput = imageProcessing.ToList();
-                    List<double> prediction = FeedForward(imageInput);
+                    List<double> imageLabels = batches[j].Item2[k].ToList();
+                    List<double> prediction = FeedForward(imageInput, imageLabels);
                     
                     // TODO : Get the error between network result and the expected one-hot encoding result
                     double error =
-                        CalculateCrossEntropyLoss(prediction, batches[j].Item2[k].ToList());
+                        CalculateMeanSquareErrorLoss(prediction, imageLabels);
                     errorMiniBatch.Add(error);
                 }
                 double averageMiniBatchLoss = errorMiniBatch.Average();
