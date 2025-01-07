@@ -11,6 +11,13 @@ as my experience making model using Recursive Least Square. So, here I'm making 
     $ dotnet run
     ```
 
+## How to Run Unit Test
+1. After you download the code. First download .net sdk 8.0
+2. Start the program, go to this root project directory
+   ```sh
+    $ dotnet test
+    ```
+
 ## What you can do
 Perhaps you interested in doing this together? Sure, just open an Issue first then after that we can discuss and such and 
 you can do PR if it's make sense.
