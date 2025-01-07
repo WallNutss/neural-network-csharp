@@ -1,6 +1,6 @@
 using NeuralNetworkCSharp.Domain;
 
-namespace NeuralNetworkCSharp;
+namespace NeuralNetworkCSharp.Core;
 
 public class DatasetLoader
 {

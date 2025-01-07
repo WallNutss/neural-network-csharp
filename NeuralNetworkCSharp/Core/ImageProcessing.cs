@@ -1,6 +1,6 @@
 using SkiaSharp;
 
-namespace NeuralNetworkCSharp;
+namespace NeuralNetworkCSharp.Core;
 
 public class ImageProcessing
 {
