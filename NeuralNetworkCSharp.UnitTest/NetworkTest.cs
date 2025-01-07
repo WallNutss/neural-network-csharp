@@ -1,3 +1,5 @@
+using NeuralNetworkCSharp.Core;
+
 namespace NeuralNetworkCSharp.UnitTest;
 
 public class NetworkTest
@@ -32,7 +34,7 @@ public class NetworkTest
         
         // Import the weight and bias
         network.ImportWeights(weights);
-        network.ImportBias(biases);
+        network.ImportBiases(biases);
         
         List<double> expected = new() { 0.9509223 };
         var tolerance= 0.00001;
@@ -66,11 +68,11 @@ public class NetworkTest
         
         // Import the weight and bias
         network.ImportWeights(weights);
-        network.ImportBias(biases);
+        network.ImportBiases(biases);
         
         List<double> expected = new() { 0.75136507, 0.772928465 };
         List<double> outputTrueLabels = new() { 0.01, 0.99 };
-        var tolerance= 0.01;
+        var tolerance= 0.000001;
         List<double> expectedWeights = new()
         {
             0.149780716, 0.19956143, 0.24975114, 0.29950229,
