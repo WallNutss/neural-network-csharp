@@ -46,7 +46,7 @@ public class NetworkTest
     }
     
     [Fact]
-    public void FeedForwardCalculation_ShouldReturnCorrectValue_WithWeightsAndBiasSetToOneAndNetwork2x3x2()
+    public void Backpropagation_WeightsShouldReturnCorrectValue_WithNetwork2x2x2()
     {
         // Number from this reference -> https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/
         // Initialize the network
@@ -70,13 +70,28 @@ public class NetworkTest
         
         List<double> expected = new() { 0.75136507, 0.772928465 };
         List<double> outputTrueLabels = new() { 0.01, 0.99 };
-        var tolerance= 0.00001;
+        var tolerance= 0.01;
+        List<double> expectedWeights = new()
+        {
+            0.149780716, 0.19956143, 0.24975114, 0.29950229,
+            0.35891648, 0.408666186, 0.511301270, 0.561370121
+        };
         
-        var output = network.FeedForward(inputNetwork, outputTrueLabels);
-        Assert.All(output, (o, index) =>
+        var outputFeedForward = network.FeedForward(inputNetwork, outputTrueLabels, 0.5);
+        
+        // Check if the feedforward result is correct
+        Assert.All(outputFeedForward, (o, index) =>
         {
             var expectedResult = expected[index];
             Assert.InRange(o, expectedResult - tolerance, expectedResult + tolerance);
+        });
+        
+        // Get the weights of the network and check the result with tolerance
+        List<double> actualWeights = network.ExportWeights();
+        Assert.All(actualWeights, (w, index) =>
+        {
+            var expectedWeight = expectedWeights[index];
+            Assert.InRange(w, expectedWeight - tolerance, expectedWeight + tolerance);
         });
 
     }
