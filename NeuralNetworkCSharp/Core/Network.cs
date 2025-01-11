@@ -2,6 +2,7 @@ using MathNet.Numerics.Distributions;
 using MathNet.Numerics.LinearAlgebra;
 using NeuralNetworkCSharp.Domain;
 using NeuralNetworkCSharp.Interface;
+using Newtonsoft.Json;
 
 namespace NeuralNetworkCSharp.Core;
 
@@ -11,8 +12,8 @@ public class Network : INetwork
     private List<int> Sizes { get; set; }
     private List<List<double>> Biases { get; set; }
     private List<List<List<double>>> Weights { get; set; }
-    private DatasetLoader _datasetLoader;
-    private ImageProcessing _imageProcessing;
+    private readonly DatasetLoader _datasetLoader;
+    private readonly ImageProcessing _imageProcessing;
     
     public Network(List<int> sizes)
     {
@@ -24,10 +25,10 @@ public class Network : INetwork
         _imageProcessing = new ImageProcessing();
     }
     
-    
     /// <summary>
     /// Generate initial random normal distribution of biases on all layer
     /// </summary>
+    /// <returns>List of biases of each neuron in their each layer</returns>
     private List<List<double>> GenerateInitialBiases()
     {
         List<List<double>> biases = new List<List<double>>();
@@ -48,6 +49,7 @@ public class Network : INetwork
     /// <summary>
     /// Generate initial random normal distribution of weights on all layer
     /// </summary>
+    /// <returns>List of weights of each neuron in their each layer</returns>
     private List<List<List<double>>> GenerateInitialWeights()
     {
         List<List<List<double>>> weights = new ();
@@ -76,6 +78,8 @@ public class Network : INetwork
     /// Follow the scheme of index 0 start from the left, with the first input of the current L-Layer the first
     /// Follow the second index 1 of their second weight on that neuron
     /// </summary>
+    /// <param name="weights"></param>
+    /// <returns>Loading weights into network</returns>
     public void ImportWeights(List<double> weights)
     {
         int totalWeightsNetwork = 0;
@@ -104,6 +108,8 @@ public class Network : INetwork
     /// <summary>
     /// Importing Custom Bias based on the Network Layer and their individual neuron inputs
     /// </summary>
+    /// <param name="biases"></param>
+    /// <returns>Loading biases into network</returns>
     public void ImportBiases(List<double> biases)
     {
         int totalBiasNetwork = 0;
@@ -125,10 +131,10 @@ public class Network : INetwork
         }
     }
     
-    // TODO : Export weight and biases
     /// <summary>
     /// Exporting Weights
     /// </summary>
+    /// <returns>Export the weights of the network into a list of doubles</returns>
     public List<double> ExportWeights()
     {
         List<double> exportWeights = new();
@@ -148,6 +154,7 @@ public class Network : INetwork
     /// <summary>
     /// Exporting Biases
     /// </summary>
+    /// <returns>Export the biases of the network into a list of doubles</returns>
     public List<double> ExportBiases()
     {
         List<double> exportBiases = new();
@@ -161,10 +168,12 @@ public class Network : INetwork
         return exportBiases;
     }
     
-    // TODO : Alogrithm to Update Weight and Bias from Nabla from the BackPropagation result
     /// <summary>
     /// Update the weights
     /// </summary>
+    /// <param name="nablaWeights">Gradient of weights over the loss function</param>
+    /// <param name="learningRate"></param>
+    /// <returns>Update the weights of the network</returns>
     private void UpdateWeights(List<List<List<double>>> nablaWeights, double learningRate)
     {
         if (Weights[0].Count != nablaWeights[0].Count)
@@ -188,6 +197,9 @@ public class Network : INetwork
     /// <summary>
     /// Update the biases
     /// </summary>
+    /// <param name="nablaBiases">Gradient of bias over the loss function</param>
+    /// <param name="learningRate"></param>
+    /// <returns>Update the biases of the network</returns>
     private void UpdateBiases(List<List<double>> nablaBiases, double learningRate)
     {
         if (Biases[0].Count != nablaBiases[0].Count)
@@ -204,6 +216,61 @@ public class Network : INetwork
             }
         }
     }
+
+    /// <summary>
+    /// Saves the network's weights and biases to a .wes file.
+    /// .wes mean in Indonesia in intention is "ah sudahlah", but in here means "weight and biases"
+    /// </summary>
+    /// <param name="modelPath">The model path you want to save with its actual name with .wes file on the end</param>
+    /// <returns>Save the weight and model into .wes file on the specific model path</returns>
+    public void SaveModel(string modelPath)
+    {
+        // Check if the file extension is .wes
+        if (Path.GetExtension(modelPath).ToLower() != ".wes")
+        {
+            throw new ArgumentException("The file must have a .wes extension.");
+        }
+        
+        var data = new NeuralNetworkData
+        {
+            Weights = Weights,
+            Biases = Biases
+        };
+
+        // Serialize the data to JSON
+        string jsonData = JsonConvert.SerializeObject(data, Formatting.Indented);
+
+        // Save to file
+        File.WriteAllText(modelPath, jsonData);
+    }
+
+    /// <summary>
+    /// Load model from .wes file
+    /// .wes mean in Indonesia in intention is "ah sudahlah", but in here means "weight and biases"
+    /// </summary>
+    /// <param name="modelPath">The model path with .wes file on the end</param>
+    /// <returns>Load the weight and biases model from .wes file</returns>
+    public void LoadModel(string modelPath)
+    {
+        // Check if the file extension is .wes
+        if (Path.GetExtension(modelPath).ToLower() != ".wes")
+        {
+            throw new ArgumentException("The file must have a .wes extension.");
+        }
+        
+        // Read the file contents
+        string jsonData = File.ReadAllText(modelPath);
+
+        // Deserialize the data from JSON
+        var neuralNetworkData = JsonConvert.DeserializeObject<NeuralNetworkData>(jsonData);
+        
+        if ( neuralNetworkData == null )
+            throw new Exception("Neural Network Data does not exist. Please check the file.");
+        
+        Biases = neuralNetworkData.Biases;
+        Weights = neuralNetworkData.Weights;
+    }
+    
     /// <summary>
     /// Apply Sigmoid Kernel Function into list of input(double)
     /// </summary>
@@ -215,6 +282,7 @@ public class Network : INetwork
     /// <summary>
     /// General Sigmoid Kernel Function
     /// </summary>
+    /// <returns>Result of sigmoid function</returns>
     private double SigmoidKernelFunction(double x)
     {
         return 1 / (1 + Math.Exp(-x));
@@ -223,6 +291,7 @@ public class Network : INetwork
     /// <summary>
     /// General Sigmoid Kernel Function Derivative
     /// </summary>
+    /// <returns>Result of derivative sigmoid function</returns>
     private double DerivativeSigmoidKernelFunction(double x)
     {
         return SigmoidKernelFunction(x) * (1 - SigmoidKernelFunction(x));
@@ -261,27 +330,55 @@ public class Network : INetwork
     }
     
     /// <summary>
-    /// FeedForward calculation from input layer to output layer in batches
+    /// Network calculation learning frocm input layer to output layer in batches (with learning and backpropagation)
     /// </summary>
-    public List<double> FeedForward(List<double> input, List<double> outputLabels, double learningRate=0.01)
+    /// <param name="input">the input data</param>
+    /// <param name="outputLabels">the labels value of the data</param>
+    /// <param name="learningRate">learning rate - the value of how much gradient descent will step</param>
+    /// <returns>Result prediction of the output layer</returns>
+    public List<double> UpdateMiniBatch(List<double> input, List<double> outputLabels, double learningRate=0.01)
     {
         if(input.Count != Sizes[0]) 
             throw new Exception($"The number of inputs must match the number of input perceptron. Current Input perceptron {Sizes[0]}");
         
-        List<List<double>> activations = new List<List<double>>();
-        List<List<double>> zs = new List<List<double>>();
+        // Run forward pass and get activations
+        List<List<double>> activations;
+        List<List<double>> zs;
+        List<double> outputActivation = ForwardPass(input, out activations, out zs);
         
+        // Do backpropagation and update the weights and biases of the network
+        Backpropagation(activations, zs, outputActivation, outputLabels, learningRate);
+
+        return outputActivation;
+    }
+    
+    /// <summary>
+    /// Forward pass through the network layers (common logic for both Inference and UpdateMiniBatch).
+    /// </summary>
+    /// <param name="input">Input the go through the network, must match with the amount of input neuron layer</param>
+    /// <param name="activations">out an activation of each layer</param>
+    /// <param name="zs">out calculation of neuron in each layer</param>
+    /// <returns>Result prediction of the output layer</returns>
+    public List<double> ForwardPass(List<double> input, out List<List<double>> activations, out List<List<double>> zs)
+    {
+        if(input.Count != Sizes[0]) 
+            throw new Exception($"The number of inputs must match the number of input perceptron. Current Input perceptron {Sizes[0]}");
+        
+        activations = new List<List<double>>();
+        zs = new List<List<double>>();
+    
         List<double> activation = new List<double>(input);
         activations.Add(activation);
+    
         // Iterate in each layer
-        for (int i = 0; i < Biases.Count ; i++)
+        for (int i = 0; i < Biases.Count; i++)
         {
             List<double> biasCurrentLayer = Biases[i];
             List<List<double>> weightCurrentLayer = Weights[i];
-            
+        
             List<double> inputCurrentLayer = new List<double>();
             List<double> zCurrentLayer = new List<double>();
-            
+        
             // Calculate the value of the activations layer for this current layer stage for each neuron
             for (int j = 0; j < biasCurrentLayer.Count; j++)
             {
@@ -291,26 +388,28 @@ public class Network : INetwork
                 // Calculate the dot product of the weights and activations
                 double z = weightVector.DotProduct(inputVector) + biasCurrentLayer[j];
                 double activationValue = SigmoidKernelFunction(z);
-                
+            
                 inputCurrentLayer.Add(activationValue);
                 zCurrentLayer.Add(z);
             }
-            
+        
             activation = inputCurrentLayer;
             activations.Add(activation);
             zs.Add(zCurrentLayer);
         }
-        
-        // TODO : Do Learning Algorithm here
-        Backpropagation(activations, zs, activation, outputLabels, learningRate);
-
+    
         return activation;
     }
     
-    // TODO : Backpropagation Algorithm (Learning / Updating the Weight and Biases)
     /// <summary>
     /// Backpropagation calculation from output layer back to input layer
     /// </summary>
+    /// <param name="activations">activations value of each layer</param>
+    /// <param name="zs">neuron calculation of each layer</param>
+    /// <param name="prediction">prediction value from forward pass</param>
+    /// <param name="target">label value that will be contested with the prediction value of forward pass</param>
+    /// <param name="learningRate">learning rate - the value of how much gradient descent will step</param>
+    /// <returns>nabla weights and biases - the change of rate of each one of weights and biases on the network</returns>
     public void Backpropagation(List<List<double>> activations, List<List<double>> zs, List<double> prediction, List<double> target, double learningRate)
     {
         int intermittenLayer = NumLayers - 2;
@@ -326,6 +425,7 @@ public class Network : INetwork
             List<double> nablaBiasesEachIntermittenLayer = new();
             List<double> dldzEachIntermittenLayer = new();
             
+            // TODO : Instead iterating like this, how about using Hadamard Product to get the result of the nabla's?
             for (int j = 0; j < Weights[i].Count; j++)
             {
                 // Updating the first intermitten layer, its special because its the first chain to update the weights
@@ -353,6 +453,7 @@ public class Network : INetwork
                 {
                     // Update Weights
                     // Iterate in each loop of previous dldz layer intermitten and get total of that to get the dL/dA[each neuron]
+                    // Instead of this, why not transpose the weight and times it using hadamard product?
                     List<double> dzda1 = new();
                     foreach (var each in Weights[i + 1])
                     {
@@ -420,7 +521,7 @@ public class Network : INetwork
                     double[] imageProcessing = _imageProcessing.SingleImageProcessing(batches[j].Item1[k]);
                     List<double> imageInput = imageProcessing.ToList();
                     List<double> imageLabels = batches[j].Item2[k].ToList();
-                    List<double> prediction = FeedForward(imageInput, imageLabels, learningRate);
+                    List<double> prediction = UpdateMiniBatch(imageInput, imageLabels, learningRate);
                     
                     // TODO : Get the error between network result and the expected one-hot encoding result
                     double error =
@@ -431,13 +532,33 @@ public class Network : INetwork
                 Console.WriteLine($"Mini Batch average loss is {averageMiniBatchLoss}");
             }
             
-            // TODO : Update the weight and Biases
+            // TODO : Update the weight and Biases based on batches?
             // StochasticGradientDescent(averageLoss);
             
         }
     }
     
-    // TODO : Predict class (Single Prediction)
+    /// <summary>
+    /// Inference Pipeline
+    /// </summary>
+    /// <param name="input">the input data</param>
+    /// <returns>Prediction result of a file</returns> 
+    public List<double> Inference(List<double> input)
+    {
+        List<double> prediction = ForwardPass(input, out _, out _);
+        return prediction;
+    }
+    
+    /// <summary>
+    /// Predict the result based on current network or should I say Inference
+    /// </summary>
+    public List<double> Fit(string filePath)
+    {
+        double[] imageProcessing = _imageProcessing.SingleImageProcessing(filePath);
+        List<double> imageInput = imageProcessing.ToList();
+        List<double> prediction = Inference(imageInput);
+        return prediction;
+    }
 
     // TODO : Add function to test the result of the network
     /// <summary>

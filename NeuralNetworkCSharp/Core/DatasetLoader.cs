@@ -9,7 +9,6 @@ public class DatasetLoader
         _rng = new Random();
     }
     
-    // TODO : Getting the images based on training directory [Done, will delete this later]
     public Dataset LoadTrainingDataset(string trainingPath)
     {
         if(!Directory.Exists(trainingPath))
@@ -42,7 +41,6 @@ public class DatasetLoader
         return dataset;
     }
     
-    // TODO : Getting the label encoding [Done, will delete this later]
     private double[] LabelEncoding(List<string> labels, string label)
     {
         double[] labelEncoding = new double[labels.Count];
@@ -56,7 +54,6 @@ public class DatasetLoader
         return labelEncoding;
     }
     
-    // TODO : Making randomize the order of images and their labels [Done, will delete this later]
     public List<(List<string> images, List<double[]> labels)> ShuffleDataset(List<string> images, List<double[]> labels, int batchSize = 100)
     {
         int count = images.Count;

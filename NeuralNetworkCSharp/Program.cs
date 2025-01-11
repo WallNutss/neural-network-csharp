@@ -19,7 +19,10 @@ class Program
         var trainingDirectory = "C:/Jun Local Things/Playground/Neural Network C#/mnist_png/train";
         
         // Start training process
-        network.Train(trainingDirectory, 100, 1000, 0.01);
+        network.Train(trainingDirectory, 10, 1000, 0.01);
+        
+        // Save the model result
+        network.SaveModel("./model.wes");
         
         // Test the network model
 

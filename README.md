@@ -3,12 +3,14 @@ I always interested in such understanding how the neural network capable of unde
 such as like can do prediction or like capable of recognizing such image. People and paper said that Neural Network is like a black box.
 But aye, I really don't believe it as I think Neural Network is much more simple than we think that it's just a gobble of mathematical function added together
 as my experience making model using Recursive Least Square. So, here I'm making neural network implementation is C# (as using Python is already to mainstream) lmao.
+This is only being as a study to learn how neural network works.
 
 ## How to Run
 1. After you download the code. First download .net sdk 8.0
 2. Start the program, go to `NeuralNetworkCsharp` and then  
    ```sh
-    $ dotnet run
+   $ cd NeuralNetworkCsharp
+   $ dotnet run
     ```
 
 ## How to Run Unit Test
@@ -17,6 +19,7 @@ as my experience making model using Recursive Least Square. So, here I'm making 
    ```sh
     $ dotnet test
     ```
+
 
 ## What you can do
 Perhaps you interested in doing this together? Sure, just open an Issue first then after that we can discuss and such and 

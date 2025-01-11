@@ -39,7 +39,7 @@ public class NetworkTest
         List<double> expected = new() { 0.9509223 };
         var tolerance= 0.00001;
         
-        var output = network.FeedForward(inputNetwork, expected);
+        var output = network.UpdateMiniBatch(inputNetwork, expected);
         Assert.All(output, (o, index) =>
         {
             var expectedResult = expected[index];
@@ -79,7 +79,7 @@ public class NetworkTest
             0.35891648, 0.408666186, 0.511301270, 0.561370121
         };
         
-        var outputFeedForward = network.FeedForward(inputNetwork, outputTrueLabels, 0.5);
+        var outputFeedForward = network.UpdateMiniBatch(inputNetwork, outputTrueLabels, 0.5);
         
         // Check if the feedforward result is correct
         Assert.All(outputFeedForward, (o, index) =>
@@ -97,4 +97,8 @@ public class NetworkTest
         });
 
     }
+    
+    // TODO : add unit test for loading the .wes model file and return the correct prediction
+    // TODO : still in TODO because I don't know how to approach this.
+    // TODO : I think that I also  should store the neuron layer information in this .wes file
 }
