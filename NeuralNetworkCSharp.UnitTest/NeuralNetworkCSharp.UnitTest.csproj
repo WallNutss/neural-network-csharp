@@ -24,4 +24,8 @@
       <ProjectReference Include="..\NeuralNetworkCSharp\NeuralNetworkCSharp.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Test Resources\Image\" />
+    </ItemGroup>
+
 </Project>

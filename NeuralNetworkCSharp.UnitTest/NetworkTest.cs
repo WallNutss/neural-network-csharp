@@ -97,4 +97,8 @@ public class NetworkTest
         });
 
     }
+    
+    // TODO : add unit test for loading the .wes model file and return the correct prediction
+    // TODO : still in TODO because I don't know how to approach this.
+    // TODO : I think that I also  should store the neuron layer information in this .wes file
 }
