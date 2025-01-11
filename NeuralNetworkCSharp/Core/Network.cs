@@ -2,6 +2,7 @@ using MathNet.Numerics.Distributions;
 using MathNet.Numerics.LinearAlgebra;
 using NeuralNetworkCSharp.Domain;
 using NeuralNetworkCSharp.Interface;
+using Newtonsoft.Json;
 
 namespace NeuralNetworkCSharp.Core;
 
@@ -214,6 +215,60 @@ public class Network : INetwork
                 Biases[i][j] += -learningRate * nablaBiases[i][j];
             }
         }
+    }
+
+    /// <summary>
+    /// Saves the network's weights and biases to a .wes file.
+    /// .wes mean in Indonesia in intention is "ah sudahlah", but in here means "weight and biases"
+    /// </summary>
+    /// <param name="modelPath">The model path you want to save with its actual name with .wes file on the end</param>
+    /// <returns>Save the weight and model into .wes file on the specific model path</returns>
+    public void SaveModel(string modelPath)
+    {
+        // Check if the file extension is .wes
+        if (Path.GetExtension(modelPath).ToLower() != ".wes")
+        {
+            throw new ArgumentException("The file must have a .wes extension.");
+        }
+        
+        var data = new NeuralNetworkData
+        {
+            Weights = Weights,
+            Biases = Biases
+        };
+
+        // Serialize the data to JSON
+        string jsonData = JsonConvert.SerializeObject(data, Formatting.Indented);
+
+        // Save to file
+        File.WriteAllText(modelPath, jsonData);
+    }
+
+    /// <summary>
+    /// Load model from .wes file
+    /// .wes mean in Indonesia in intention is "ah sudahlah", but in here means "weight and biases"
+    /// </summary>
+    /// <param name="modelPath">The model path with .wes file on the end</param>
+    /// <returns>Load the weight and biases model from .wes file</returns>
+    public void LoadModel(string modelPath)
+    {
+        // Check if the file extension is .wes
+        if (Path.GetExtension(modelPath).ToLower() != ".wes")
+        {
+            throw new ArgumentException("The file must have a .wes extension.");
+        }
+        
+        // Read the file contents
+        string jsonData = File.ReadAllText(modelPath);
+
+        // Deserialize the data from JSON
+        var neuralNetworkData = JsonConvert.DeserializeObject<NeuralNetworkData>(jsonData);
+        
+        if ( neuralNetworkData == null )
+            throw new Exception("Neural Network Data does not exist. Please check the file.");
+        
+        Biases = neuralNetworkData.Biases;
+        Weights = neuralNetworkData.Weights;
     }
     
     /// <summary>

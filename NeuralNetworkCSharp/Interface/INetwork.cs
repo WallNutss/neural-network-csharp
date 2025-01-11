@@ -12,4 +12,6 @@ public interface INetwork
     void ImportBiases(List<double> importedBiases);
     List<double> ExportWeights();
     List<double> ExportBiases();
+    void SaveModel(string modelPath);
+    void LoadModel(string modelPath);
 }
