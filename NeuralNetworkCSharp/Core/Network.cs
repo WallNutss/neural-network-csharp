@@ -1,6 +1,7 @@
 using MathNet.Numerics.Distributions;
 using MathNet.Numerics.LinearAlgebra;
 using NeuralNetworkCSharp.Domain;
+using NeuralNetworkCSharp.Helper;
 using NeuralNetworkCSharp.Interface;
 using Newtonsoft.Json;
 
@@ -291,11 +292,23 @@ public class Network : INetwork
     /// <summary>
     /// General Sigmoid Kernel Function Derivative
     /// </summary>
+    /// <param name="x">a double value to get the result of the derivative</param>
     /// <returns>Result of derivative sigmoid function</returns>
     private double DerivativeSigmoidKernelFunction(double x)
     {
         return SigmoidKernelFunction(x) * (1 - SigmoidKernelFunction(x));
     }
+    
+    /// <summary>
+    /// General Sigmoid Kernel Function Derivative for array inpputs
+    /// </summary>
+    /// <param name="inputs">a double value to get the result of the derivative</param>
+    /// <returns>Result of derivative sigmoid function</returns>
+    private List<double> DerivativeSigmoidKernelFunction(List<double> inputs)
+    {
+        return inputs.Select(DerivativeSigmoidKernelFunction).ToList();
+    }
+    
 
     /// <summary>
     /// Calculate the losses (labels - prediction) using Cross-Entropy Loss
@@ -425,63 +438,58 @@ public class Network : INetwork
             List<double> nablaBiasesEachIntermittenLayer = new();
             List<double> dldzEachIntermittenLayer = new();
             
-            // TODO : Instead iterating like this, how about using Hadamard Product to get the result of the nabla's?
-            for (int j = 0; j < Weights[i].Count; j++)
+            // // TODO : Instead iterating like this, how about using Hadamard Product to get the result of the nabla's?
+            if (i == intermittenLayer)
             {
-                // Updating the first intermitten layer, its special because its the first chain to update the weights
-                if (i == intermittenLayer)
-                {
-                    // Update the Weights
-                    var dlda = prediction[j] - target[j];
-                    var dadz = DerivativeSigmoidKernelFunction(zs[i][j]);
-                    var dzdw = Vector<double>.Build.Dense(activations[i].ToArray());
-
-                    var dldz = dlda * dadz;
-                    var dldw = dldz * dzdw;
-                    
-                    // Update the Biases
-                    var dzdb = 1.0; // Because derivative of zL = wL.AL-1 + bL respective to b is 1 so....
-                    var dldb = dldz * dzdb;
-                    
-                    dldzEachIntermittenLayer.Add(dldz);
-                    nablaWeightsEachIntermittenLayer.Add(dldw.ToList());
-                    nablaBiasesEachIntermittenLayer.Add(dldb);
-                }
-                // The rest of the intermitten layer, if there is four layer {input, hidden, hidden, output}, then this
-                // will be the input-hidden, hidden-hidden
-                else
-                {
-                    // Update Weights
-                    // Iterate in each loop of previous dldz layer intermitten and get total of that to get the dL/dA[each neuron]
-                    // Instead of this, why not transpose the weight and times it using hadamard product?
-                    List<double> dzda1 = new();
-                    foreach (var each in Weights[i + 1])
-                    {
-                        dzda1.Add(each[j]);
-                    }
-                    var dldzPreviousLayer = Vector<double>.Build.Dense(dLdzs[0].ToArray());
-                    var dzda1Vector = Vector<double>.Build.Dense(dzda1.ToArray());
-                    
-                    // Get the current dLdz by dL/dA[each neuron] * dA[Each Neuron]/dz[Each Neuron]
-                    var dadz = DerivativeSigmoidKernelFunction(zs[i][j]);
-                    var dldz = dldzPreviousLayer.DotProduct(dzda1Vector) * dadz;
-                    
-                    // Get the nabla of dLdw by simply now dLdz * dzdw
-                    var dzdw = Vector<double>.Build.Dense(activations[i].ToArray());
-                    var dldw = dldz * dzdw;
-                    
-                    // Update Biases
-                    var dzdb = 1.0; // Because derivative of zL = wL.AL-1 + bL respective to b is 1 so....
-                    var dldb = dldz * dzdb;
-                    
-                    dldzEachIntermittenLayer.Add(dldz);
-                    nablaWeightsEachIntermittenLayer.Add(dldw.ToList());
-                    nablaBiasesEachIntermittenLayer.Add(dldb);
-                }
+                // Update the weights
+                var predictionVector = Vector<double>.Build.Dense(prediction.ToArray());
+                var targetVector = Vector<double>.Build.Dense(target.ToArray());
+                
+                var dLdA = predictionVector - targetVector;
+                var dAdz = Vector<double>.Build.Dense(DerivativeSigmoidKernelFunction(zs[i]).ToArray());
+                var dzdw = Vector<double>.Build.Dense(activations[i].ToArray());
+                
+                // Get the dLdZ of this intermitten layer
+                var dLdz = dLdA.PointwiseMultiply(dAdz);
+                
+                var dLdw = dLdz.ToColumnMatrix() * dzdw.ToRowMatrix();
+                
+                // Update the biases
+                var dzdb = 1.0; // Because derivative of zL = wL.AL-1 + bL respective to b is 1 so....
+                var dLdb = dLdz * dzdb;
+                
+                nablaWeights.Insert(0, MatrixConverter.ConvertMatrixToListOfLists(dLdw));
+                nablaBiases.Insert(0, dLdb.ToList());
+                dLdzs.Insert(0, dLdz.ToList());
             }
-            nablaWeights.Insert(0, nablaWeightsEachIntermittenLayer);
-            nablaBiases.Insert(0, nablaBiasesEachIntermittenLayer);
-            dLdzs.Insert(0, dldzEachIntermittenLayer);
+            // The rest of the intermitten layer, if there is four layer {input, hidden, hidden, output}, then this
+            // will be the input-hidden, hidden-hidden
+            else
+            {
+                // Update Weights
+                var dLdzPreviousLayer = Vector<double>.Build.Dense(dLdzs[0].ToArray());
+                var dzdA = MatrixConverter.ConvertListOfListsToMatrix(Weights[i + 1]).Transpose();
+                var dAdz = Vector<double>.Build.Dense(DerivativeSigmoidKernelFunction(zs[i]).ToArray());
+                var dzdw = Vector<double>.Build.Dense(activations[i].ToArray());
+                
+                // Get the dLdZ of this intermitten layer
+                var dLdz = Vector<double>.Build.Dense(dzdA.RowCount);
+
+                // Perform the element-wise multiplication for each row and sum
+                for (int k = 0; k < dzdA.RowCount; k++)
+                    dLdz[i] = dLdzPreviousLayer.PointwiseMultiply(dzdA.Row(k)).Sum();  // Element-wise multiplication + sum for the row
+                
+                // Get the nabla of dLdw by simply now dLdz * dzdw
+                var dLdw = dLdz.ToColumnMatrix() * dzdw.ToRowMatrix();
+                
+                // Update Biases
+                var dzdb = 1.0; // Because derivative of zL = wL.AL-1 + bL respective to b is 1 so....
+                var dLdb = dLdz * dzdb;
+                
+                nablaWeights.Insert(0, MatrixConverter.ConvertMatrixToListOfLists(dLdw));
+                nablaBiases.Insert(0, dLdb.ToList());
+                dLdzs.Insert(0, dLdz.ToList());
+            }
         }
         
         // Update the weight and biases
