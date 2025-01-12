@@ -363,7 +363,7 @@ public class Network : INetwork
         List<double> outputActivation = ForwardPass(input, out activations, out zs);
         
         // Do backpropagation and update the weights and biases of the network
-        Backpropagation(activations, zs, outputActivation, outputLabels, learningRate);
+        Backpropagation(activations, zs, outputActivation, outputLabels, learningRate, method);
 
         return outputActivation;
     }
@@ -580,7 +580,7 @@ public class Network : INetwork
         // Load the training dataset and get their label based on one-hot encoding
         Dataset dataset = _datasetLoader.LoadTrainingDataset(trainingDirectory);
         
-        // Start training processs
+        // Start training process
         for (int i = 1; i <= epochs; i++)
         {
             Console.WriteLine($"Epoch #{i}/{epochs}....");
@@ -603,7 +603,7 @@ public class Network : INetwork
                     double[] imageProcessing = _imageProcessing.SingleImageProcessing(batches[j].Item1[k]);
                     List<double> imageInput = imageProcessing.ToList();
                     List<double> imageLabels = batches[j].Item2[k].ToList();
-                    List<double> prediction = UpdateMiniBatch(imageInput, imageLabels, learningRate);
+                    List<double> prediction = UpdateMiniBatch(imageInput, imageLabels, learningRate, method);
                     
                     // TODO : Get the error between network result and the expected one-hot encoding result
                     double error =
