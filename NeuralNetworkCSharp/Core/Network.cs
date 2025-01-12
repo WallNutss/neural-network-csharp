@@ -426,19 +426,14 @@ public class Network : INetwork
     public void Backpropagation(List<List<double>> activations, List<List<double>> zs, List<double> prediction, List<double> target, double learningRate)
     {
         int intermittenLayer = NumLayers - 2;
+        
         List<List<List<double>>> nablaWeights = new();
         List<List<double>> nablaBiases = new();
-        
         List<List<double>> dLdzs = new();
 
         // Start the weight and bias update using gradient descent
         for (int i = intermittenLayer; i >= 0; i--)
         {
-            List<List<double>> nablaWeightsEachIntermittenLayer = new();
-            List<double> nablaBiasesEachIntermittenLayer = new();
-            List<double> dldzEachIntermittenLayer = new();
-            
-            // // TODO : Instead iterating like this, how about using Hadamard Product to get the result of the nabla's?
             if (i == intermittenLayer)
             {
                 // Update the weights
@@ -473,11 +468,13 @@ public class Network : INetwork
                 var dzdw = Vector<double>.Build.Dense(activations[i].ToArray());
                 
                 // Get the dLdZ of this intermitten layer
-                var dLdz = Vector<double>.Build.Dense(dzdA.RowCount);
+                var dLdA = Vector<double>.Build.Dense(dzdA.RowCount);
 
                 // Perform the element-wise multiplication for each row and sum
                 for (int k = 0; k < dzdA.RowCount; k++)
-                    dLdz[i] = dLdzPreviousLayer.PointwiseMultiply(dzdA.Row(k)).Sum();  // Element-wise multiplication + sum for the row
+                    dLdA[k] = dLdzPreviousLayer.PointwiseMultiply(dzdA.Row(k)).Sum();
+                
+                var dLdz = dLdA.PointwiseMultiply(dAdz);
                 
                 // Get the nabla of dLdw by simply now dLdz * dzdw
                 var dLdw = dLdz.ToColumnMatrix() * dzdw.ToRowMatrix();
