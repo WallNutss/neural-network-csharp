@@ -1,6 +1,8 @@
 using MathNet.Numerics.Distributions;
 using MathNet.Numerics.LinearAlgebra;
 using NeuralNetworkCSharp.Domain;
+using NeuralNetworkCSharp.Enum;
+using NeuralNetworkCSharp.Helper;
 using NeuralNetworkCSharp.Interface;
 using Newtonsoft.Json;
 
@@ -291,11 +293,23 @@ public class Network : INetwork
     /// <summary>
     /// General Sigmoid Kernel Function Derivative
     /// </summary>
+    /// <param name="x">a double value to get the result of the derivative</param>
     /// <returns>Result of derivative sigmoid function</returns>
     private double DerivativeSigmoidKernelFunction(double x)
     {
         return SigmoidKernelFunction(x) * (1 - SigmoidKernelFunction(x));
     }
+    
+    /// <summary>
+    /// General Sigmoid Kernel Function Derivative for array inpputs
+    /// </summary>
+    /// <param name="inputs">a double value to get the result of the derivative</param>
+    /// <returns>Result of derivative sigmoid function</returns>
+    private List<double> DerivativeSigmoidKernelFunction(List<double> inputs)
+    {
+        return inputs.Select(DerivativeSigmoidKernelFunction).ToList();
+    }
+    
 
     /// <summary>
     /// Calculate the losses (labels - prediction) using Cross-Entropy Loss
@@ -335,8 +349,10 @@ public class Network : INetwork
     /// <param name="input">the input data</param>
     /// <param name="outputLabels">the labels value of the data</param>
     /// <param name="learningRate">learning rate - the value of how much gradient descent will step</param>
+    /// <param name="method">for calculating the weights and bias update, prefer to calculate it straight in each layer at the same time (Matrix Calculation) or one at-a-time in each layer in every neuron</param>
     /// <returns>Result prediction of the output layer</returns>
-    public List<double> UpdateMiniBatch(List<double> input, List<double> outputLabels, double learningRate=0.01)
+    public List<double> UpdateMiniBatch(List<double> input, List<double> outputLabels,
+        double learningRate=0.01, BackpropagationMethod method = BackpropagationMethod.Forloop)
     {
         if(input.Count != Sizes[0]) 
             throw new Exception($"The number of inputs must match the number of input perceptron. Current Input perceptron {Sizes[0]}");
@@ -347,7 +363,7 @@ public class Network : INetwork
         List<double> outputActivation = ForwardPass(input, out activations, out zs);
         
         // Do backpropagation and update the weights and biases of the network
-        Backpropagation(activations, zs, outputActivation, outputLabels, learningRate);
+        Backpropagation(activations, zs, outputActivation, outputLabels, learningRate, method);
 
         return outputActivation;
     }
@@ -409,79 +425,143 @@ public class Network : INetwork
     /// <param name="prediction">prediction value from forward pass</param>
     /// <param name="target">label value that will be contested with the prediction value of forward pass</param>
     /// <param name="learningRate">learning rate - the value of how much gradient descent will step</param>
+    /// <param name="method">for calculating the weights and bias update, prefer to calculate it straight in each layer at the same time (Matrix Calculation) or one at-a-time in each layer in every neuron</param>
     /// <returns>nabla weights and biases - the change of rate of each one of weights and biases on the network</returns>
-    public void Backpropagation(List<List<double>> activations, List<List<double>> zs, List<double> prediction, List<double> target, double learningRate)
+    public void Backpropagation(List<List<double>> activations, List<List<double>> zs, 
+        List<double> prediction, List<double> target, double learningRate, BackpropagationMethod method = BackpropagationMethod.Forloop)
     {
         int intermittenLayer = NumLayers - 2;
+        
         List<List<List<double>>> nablaWeights = new();
         List<List<double>> nablaBiases = new();
-        
         List<List<double>> dLdzs = new();
 
-        // Start the weight and bias update using gradient descent
-        for (int i = intermittenLayer; i >= 0; i--)
+        if (method == BackpropagationMethod.Forloop)
         {
-            List<List<double>> nablaWeightsEachIntermittenLayer = new();
-            List<double> nablaBiasesEachIntermittenLayer = new();
-            List<double> dldzEachIntermittenLayer = new();
-            
-            // TODO : Instead iterating like this, how about using Hadamard Product to get the result of the nabla's?
-            for (int j = 0; j < Weights[i].Count; j++)
+            // Start the weight and bias update using gradient descent
+            for (int i = intermittenLayer; i >= 0; i--)
             {
-                // Updating the first intermitten layer, its special because its the first chain to update the weights
+                List<List<double>> nablaWeightsEachIntermittenLayer = new();
+                List<double> nablaBiasesEachIntermittenLayer = new();
+                List<double> dldzEachIntermittenLayer = new();
+                
+                for (int j = 0; j < Weights[i].Count; j++)
+                {
+                    // Updating the first intermitten layer, its special because its the first chain to update the weights
+                    if (i == intermittenLayer)
+                    {
+                        // Update the Weights
+                        var dlda = prediction[j] - target[j];
+                        var dadz = DerivativeSigmoidKernelFunction(zs[i][j]);
+                        var dzdw = Vector<double>.Build.Dense(activations[i].ToArray());
+
+                        var dldz = dlda * dadz;
+                        var dldw = dldz * dzdw;
+                        
+                        // Update the Biases
+                        var dzdb = 1.0; // Because derivative of zL = wL.AL-1 + bL respective to b is 1 so....
+                        var dldb = dldz * dzdb;
+                        
+                        dldzEachIntermittenLayer.Add(dldz);
+                        nablaWeightsEachIntermittenLayer.Add(dldw.ToList());
+                        nablaBiasesEachIntermittenLayer.Add(dldb);
+                    }
+                    // The rest of the intermitten layer, if there is four layer {input, hidden, hidden, output}, then this
+                    // will be the input-hidden, hidden-hidden
+                    else
+                    {
+                        // Update Weights
+                        // Iterate in each loop of previous dldz layer intermitten and get total of that to get the dL/dA[each neuron]
+                        // Instead of this, why not transpose the weight and times it using hadamard product?
+                        List<double> dzda1 = new();
+                        foreach (var each in Weights[i + 1])
+                        {
+                            dzda1.Add(each[j]);
+                        }
+                        var dldzPreviousLayer = Vector<double>.Build.Dense(dLdzs[0].ToArray());
+                        var dzda1Vector = Vector<double>.Build.Dense(dzda1.ToArray());
+                        
+                        // Get the current dLdz by dL/dA[each neuron] * dA[Each Neuron]/dz[Each Neuron]
+                        var dadz = DerivativeSigmoidKernelFunction(zs[i][j]);
+                        var dldz = dldzPreviousLayer.DotProduct(dzda1Vector) * dadz;
+                        
+                        // Get the nabla of dLdw by simply now dLdz * dzdw
+                        var dzdw = Vector<double>.Build.Dense(activations[i].ToArray());
+                        var dldw = dldz * dzdw;
+                        
+                        // Update Biases
+                        var dzdb = 1.0; // Because derivative of zL = wL.AL-1 + bL respective to b is 1 so....
+                        var dldb = dldz * dzdb;
+                        
+                        dldzEachIntermittenLayer.Add(dldz);
+                        nablaWeightsEachIntermittenLayer.Add(dldw.ToList());
+                        nablaBiasesEachIntermittenLayer.Add(dldb);
+                    }
+                }
+                nablaWeights.Insert(0, nablaWeightsEachIntermittenLayer);
+                nablaBiases.Insert(0, nablaBiasesEachIntermittenLayer);
+                dLdzs.Insert(0, dldzEachIntermittenLayer);
+            }
+        }
+        else if (method == BackpropagationMethod.MatrixMultiplication)
+        {
+            // Start the weight and bias update using gradient descent with matrix multiplication (hadamard product)
+            for (int i = intermittenLayer; i >= 0; i--)
+            {
                 if (i == intermittenLayer)
                 {
-                    // Update the Weights
-                    var dlda = prediction[j] - target[j];
-                    var dadz = DerivativeSigmoidKernelFunction(zs[i][j]);
+                    // Update the weights
+                    var predictionVector = Vector<double>.Build.Dense(prediction.ToArray());
+                    var targetVector = Vector<double>.Build.Dense(target.ToArray());
+                    
+                    var dLdA = predictionVector - targetVector;
+                    var dAdz = Vector<double>.Build.Dense(DerivativeSigmoidKernelFunction(zs[i]).ToArray());
                     var dzdw = Vector<double>.Build.Dense(activations[i].ToArray());
-
-                    var dldz = dlda * dadz;
-                    var dldw = dldz * dzdw;
                     
-                    // Update the Biases
+                    // Get the dLdZ of this intermitten layer
+                    var dLdz = dLdA.PointwiseMultiply(dAdz);
+                    
+                    var dLdw = dLdz.ToColumnMatrix() * dzdw.ToRowMatrix();
+                    
+                    // Update the biases
                     var dzdb = 1.0; // Because derivative of zL = wL.AL-1 + bL respective to b is 1 so....
-                    var dldb = dldz * dzdb;
+                    var dLdb = dLdz * dzdb;
                     
-                    dldzEachIntermittenLayer.Add(dldz);
-                    nablaWeightsEachIntermittenLayer.Add(dldw.ToList());
-                    nablaBiasesEachIntermittenLayer.Add(dldb);
+                    nablaWeights.Insert(0, MatrixConverter.ConvertMatrixToListOfLists(dLdw));
+                    nablaBiases.Insert(0, dLdb.ToList());
+                    dLdzs.Insert(0, dLdz.ToList());
                 }
                 // The rest of the intermitten layer, if there is four layer {input, hidden, hidden, output}, then this
                 // will be the input-hidden, hidden-hidden
                 else
                 {
                     // Update Weights
-                    // Iterate in each loop of previous dldz layer intermitten and get total of that to get the dL/dA[each neuron]
-                    // Instead of this, why not transpose the weight and times it using hadamard product?
-                    List<double> dzda1 = new();
-                    foreach (var each in Weights[i + 1])
-                    {
-                        dzda1.Add(each[j]);
-                    }
-                    var dldzPreviousLayer = Vector<double>.Build.Dense(dLdzs[0].ToArray());
-                    var dzda1Vector = Vector<double>.Build.Dense(dzda1.ToArray());
+                    var dLdzPreviousLayer = Vector<double>.Build.Dense(dLdzs[0].ToArray());
+                    var dzdA = MatrixConverter.ConvertListOfListsToMatrix(Weights[i + 1]).Transpose();
+                    var dAdz = Vector<double>.Build.Dense(DerivativeSigmoidKernelFunction(zs[i]).ToArray());
+                    var dzdw = Vector<double>.Build.Dense(activations[i].ToArray());
                     
-                    // Get the current dLdz by dL/dA[each neuron] * dA[Each Neuron]/dz[Each Neuron]
-                    var dadz = DerivativeSigmoidKernelFunction(zs[i][j]);
-                    var dldz = dldzPreviousLayer.DotProduct(dzda1Vector) * dadz;
+                    // Get the dLdZ of this intermitten layer
+                    var dLdA = Vector<double>.Build.Dense(dzdA.RowCount);
+
+                    // Perform the element-wise multiplication for each row and sum
+                    for (int k = 0; k < dzdA.RowCount; k++)
+                        dLdA[k] = dLdzPreviousLayer.PointwiseMultiply(dzdA.Row(k)).Sum();
+                    
+                    var dLdz = dLdA.PointwiseMultiply(dAdz);
                     
                     // Get the nabla of dLdw by simply now dLdz * dzdw
-                    var dzdw = Vector<double>.Build.Dense(activations[i].ToArray());
-                    var dldw = dldz * dzdw;
+                    var dLdw = dLdz.ToColumnMatrix() * dzdw.ToRowMatrix();
                     
                     // Update Biases
                     var dzdb = 1.0; // Because derivative of zL = wL.AL-1 + bL respective to b is 1 so....
-                    var dldb = dldz * dzdb;
+                    var dLdb = dLdz * dzdb;
                     
-                    dldzEachIntermittenLayer.Add(dldz);
-                    nablaWeightsEachIntermittenLayer.Add(dldw.ToList());
-                    nablaBiasesEachIntermittenLayer.Add(dldb);
+                    nablaWeights.Insert(0, MatrixConverter.ConvertMatrixToListOfLists(dLdw));
+                    nablaBiases.Insert(0, dLdb.ToList());
+                    dLdzs.Insert(0, dLdz.ToList());
                 }
             }
-            nablaWeights.Insert(0, nablaWeightsEachIntermittenLayer);
-            nablaBiases.Insert(0, nablaBiasesEachIntermittenLayer);
-            dLdzs.Insert(0, dldzEachIntermittenLayer);
         }
         
         // Update the weight and biases
@@ -489,16 +569,18 @@ public class Network : INetwork
         UpdateBiases(nablaBiases, learningRate);
     }
     
+    
     // TODO : Training Loops Mechanism
     /// <summary>
     /// Training Pipeline
     /// </summary>
-    public void Train(string trainingDirectory, int epochs, int batchSize, double learningRate)
+    public void Train(string trainingDirectory, int epochs, 
+        int batchSize, double learningRate, BackpropagationMethod method = BackpropagationMethod.Forloop)
     {
         // Load the training dataset and get their label based on one-hot encoding
         Dataset dataset = _datasetLoader.LoadTrainingDataset(trainingDirectory);
         
-        // Start training processs
+        // Start training process
         for (int i = 1; i <= epochs; i++)
         {
             Console.WriteLine($"Epoch #{i}/{epochs}....");
@@ -521,7 +603,7 @@ public class Network : INetwork
                     double[] imageProcessing = _imageProcessing.SingleImageProcessing(batches[j].Item1[k]);
                     List<double> imageInput = imageProcessing.ToList();
                     List<double> imageLabels = batches[j].Item2[k].ToList();
-                    List<double> prediction = UpdateMiniBatch(imageInput, imageLabels, learningRate);
+                    List<double> prediction = UpdateMiniBatch(imageInput, imageLabels, learningRate, method);
                     
                     // TODO : Get the error between network result and the expected one-hot encoding result
                     double error =
@@ -537,6 +619,7 @@ public class Network : INetwork
             
         }
     }
+    
     
     /// <summary>
     /// Inference Pipeline

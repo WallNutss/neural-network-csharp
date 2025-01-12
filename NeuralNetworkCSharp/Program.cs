@@ -1,10 +1,8 @@
-﻿
-using System.Diagnostics;
-using NeuralNetworkCSharp;
-using NeuralNetworkCSharp.Core;
-using NeuralNetworkCSharp.Domain;
+﻿using NeuralNetworkCSharp.Core;
 
-class Program
+namespace NeuralNetworkCSharp;
+
+static class Program
 {
     public static void Main(string[] args)
     {
