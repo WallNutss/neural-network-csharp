@@ -54,12 +54,12 @@ public class DatasetLoader
         return labelEncoding;
     }
     
-    public List<(List<string> images, List<double[]> labels)> ShuffleDataset(List<string> images, List<double[]> labels, int batchSize = 100)
+    public List<BatchData> ShuffleDataset(List<string> images, List<double[]> labels, int batchSize = 100)
     {
         int count = images.Count;
         int batchSet = BatchSet(batchSize, count);
         (List<string> shuffledImages, List<double[]> shuffledLabels) = Shuffle(images, labels);
-        List<(List<string> images, List<double[]> labels)> batches = new();
+        List<BatchData> batches = new();
         
         int index = 0;
         for (int i = 0; i < batchSet; i++)
@@ -73,7 +73,12 @@ public class DatasetLoader
                 miniBatchLabels.Add(shuffledLabels[index]);
                 index++;
             }
-            batches.Add((miniBatchImages, miniBatchLabels));
+
+            batches.Add(new BatchData()
+            {
+                Images = miniBatchImages,
+                Labels = miniBatchLabels
+            });
         }
         return batches;
     }
