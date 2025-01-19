@@ -1,4 +1,5 @@
 using NeuralNetworkCSharp.Core;
+using NeuralNetworkCSharp.Domain;
 using NeuralNetworkCSharp.Enum;
 
 namespace NeuralNetworkCSharp.UnitTest;
@@ -40,7 +41,7 @@ public class NetworkTest
         List<double> expected = new() { 0.9509223 };
         var tolerance= 0.00001;
         
-        var output = network.UpdateMiniBatch(inputNetwork, expected);
+        var output = network.ForwardPass(inputNetwork, out _, out _);
         Assert.All(output, (o, index) =>
         {
             var expectedResult = expected[index];
@@ -59,6 +60,7 @@ public class NetworkTest
         List<int> networkSize = new List<int>(){ inputLayer, secondLayer, outputLayer }; 
         
         Network network = new Network(networkSize);
+        double learningRate = 0.5;
         
         // Initialize the weight and bias
         List<double> weights = new List<double>() { 0.15, 0.20, 0.25, 0.30, 0.40, 0.45, 0.50, 0.55 };
@@ -80,7 +82,10 @@ public class NetworkTest
             0.35891648, 0.408666186, 0.511301270, 0.561370121
         };
         
-        var outputFeedForward = network.UpdateMiniBatch(inputNetwork, outputTrueLabels, 0.5);
+        // Get the feed forward result
+        List<List<double>> activations;
+        List<List<double>> zs;
+        var outputFeedForward = network.ForwardPass(inputNetwork, out activations, out zs);
         
         // Check if the feedforward result is correct
         Assert.All(outputFeedForward, (o, index) =>
@@ -89,6 +94,12 @@ public class NetworkTest
             Assert.InRange(o, expectedResult - tolerance, expectedResult + tolerance);
         });
         
+        // Get the result of the backpropagation and update its weight and biases
+        GradientParameters gradientParameters = 
+            network.Backpropagation(activations, zs, outputFeedForward, outputTrueLabels, learningRate);
+        network.UpdateWeights(gradientParameters.NablaWeights, 1, learningRate);
+        network.UpdateBiases(gradientParameters.NablaBiases, 1, learningRate);
+        
         // Get the weights of the network and check the result with tolerance
         List<double> actualWeights = network.ExportWeights();
         Assert.All(actualWeights, (w, index) =>
@@ -96,7 +107,7 @@ public class NetworkTest
             var expectedWeight = expectedWeights[index];
             Assert.InRange(w, expectedWeight - tolerance, expectedWeight + tolerance);
         });
-
+    
     }
     
     
@@ -111,6 +122,7 @@ public class NetworkTest
         List<int> networkSize = new List<int>(){ inputLayer, secondLayer, outputLayer }; 
         
         Network network = new Network(networkSize);
+        double learningRate = 0.5;
         
         // Initialize the weight and bias
         List<double> weights = new List<double>() { 0.15, 0.20, 0.25, 0.30, 0.40, 0.45, 0.50, 0.55 };
@@ -132,7 +144,10 @@ public class NetworkTest
             0.35891648, 0.408666186, 0.511301270, 0.561370121
         };
         
-        var outputFeedForward = network.UpdateMiniBatch(inputNetwork, outputTrueLabels, 0.5, BackpropagationMethod.MatrixMultiplication);
+        // Get the feed forward result
+        List<List<double>> activations;
+        List<List<double>> zs;
+        var outputFeedForward = network.ForwardPass(inputNetwork, out activations, out zs);
         
         // Check if the feedforward result is correct
         Assert.All(outputFeedForward, (o, index) =>
@@ -141,6 +156,12 @@ public class NetworkTest
             Assert.InRange(o, expectedResult - tolerance, expectedResult + tolerance);
         });
         
+        // Get the result of the backpropagation and update its weight and biases
+        GradientParameters gradientParameters = 
+            network.Backpropagation(activations, zs, outputFeedForward, outputTrueLabels, learningRate, BackpropagationMethod.MatrixMultiplication);
+        network.UpdateWeights(gradientParameters.NablaWeights, 1, learningRate);
+        network.UpdateBiases(gradientParameters.NablaBiases, 1, learningRate);
+        
         // Get the weights of the network and check the result with tolerance
         List<double> actualWeights = network.ExportWeights();
         Assert.All(actualWeights, (w, index) =>
@@ -148,7 +169,7 @@ public class NetworkTest
             var expectedWeight = expectedWeights[index];
             Assert.InRange(w, expectedWeight - tolerance, expectedWeight + tolerance);
         });
-
+    
     }
     
     // TODO : add unit test for loading the .wes model file and return the correct prediction
